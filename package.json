@@ -1,0 +1,46 @@
+{
+  "name": "layerzero-log-reader",
+  "version": "1.0.0",
+  "description": "TypeScript library for querying and parsing LayerZero event logs from Ethereum",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "crawl": "tsx crawl-claims.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "prepublishOnly": "yarn build"
+  },
+  "keywords": [
+    "layerzero",
+    "ethereum",
+    "blockchain",
+    "event-logs",
+    "web3",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "yarn": ">=1.22.0"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.57.0",
+    "fast-check": "^3.19.0",
+    "prettier": "^3.3.2",
+    "tsx": "^4.22.3",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

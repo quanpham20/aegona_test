@@ -1,0 +1,19 @@
+{
+  "network": {
+    "rpcEndpoint": "https://eth-mainnet.g.alchemy.com/v2/your-api-key",
+    "chainId": 1,
+    "timeout": 30000
+  },
+  "contracts": {
+    "endpoint": {
+      "address": "0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675",
+      "abiPath": "./abis/LayerZeroEndpoint.json"
+    }
+  },
+  "query": {
+    "defaultBlockRange": 1000,
+    "maxBlockRange": 10000,
+    "batchSize": 2000
+  },
+  "logLevel": "info"
+}
