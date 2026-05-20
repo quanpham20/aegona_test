@@ -23,7 +23,7 @@ tsx crawl-claims.ts
 
 
 # Infura Arbitrum
-RPC_URL=https://arbitrum-mainnet.infura.io/v3/your-api-key node crawl-claims.js
+RPC_URL=https://arbitrum-mainnet.infura.io/v3/your-api-key 
 ```
 
 ## Kết quả
@@ -33,9 +33,9 @@ Script sẽ in ra:
 - Số lượng unique claimers
 - **Tổng số ZRO token đã được claim** (expectedAmount và actualAmount)
 - Top 10 claimers
-- Lưu chi tiết vào file `claim-results.json`
+- Lưu chi tiết vào file `claim-results.json`(có up trong repo)
 
-## Ví dụ output
+## Ví dụ output(ví dụ thôi vì chỉ crawl 1/10)
 
 ```
 === SUMMARY ===
@@ -49,6 +49,5 @@ Total Actual Amount: 98765.432 ZRO
 
 ## Lưu ý
 
-- Script crawl theo batch 10,000 blocks để tránh RPC limit
-- Với ~3.9 triệu blocks, sẽ mất khoảng 5-10 phút
-- Nếu gặp lỗi rate limit, giảm BATCH_SIZE trong file crawl-claims.ts
+- Script crawl theo batch 1000 blocks để tránh RPC limit quas nhiều event
+
