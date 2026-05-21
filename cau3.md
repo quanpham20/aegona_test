@@ -1,39 +1,39 @@
-# Hệ thống Monitor & Push Notification cho Hyperliquid
+# Hyperliquid Monitor & Push Notification System
 
-## Câu hỏi
+## Question
 
 > If you had to monitor the addresses of 2.5k users on Hyperliquid & send them push notifications when they have an order filled, how would you design the system? Take into account rate limits & scalability of the solution.
 
-## Giải pháp
+## Solution
 
-Đầu tiên, kiểm tra Hyperliquid hỗ trợ những gì, vì cách thiết kế hệ thống sẽ phụ thuộc vào API của họ.
+First, check what Hyperliquid supports, as the system design will depend on their API.
 
-### Trường hợp 1: Hyperliquid có WebSocket
+### Case 1: Hyperliquid has WebSocket
 
-Nếu Hyperliquid có hỗ trợ dữ liệu realtime qua websocket, tôi sẽ mở một kết nối realtime để lắng nghe các lệnh được khớp.
+If Hyperliquid supports realtime data via websocket, I will open a realtime connection to listen for order fills.
 
-Khi có dữ liệu mới gửi về, hệ thống sẽ kiểm tra xem địa chỉ ví đó có nằm trong danh sách 2.5k user cần theo dõi hay không. Nếu có thì đưa vào hàng đợi và gửi push notification cho user.
+When new data is received, the system will check if that wallet address is in the list of 2.5k users to monitor. If yes, add it to the queue and send push notification to the user.
 
-**Đây là cách tốt nhất vì:**
-- Ít tốn request
-- Tránh bị rate limit
-- Độ trễ thấp
-- Dễ mở rộng sau này
+**This is the best approach because:**
+- Fewer requests
+- Avoid rate limits
+- Low latency
+- Easy to scale later
 
-### Trường hợp 2: Chỉ có REST API
+### Case 2: Only REST API
 
-Nếu Hyperliquid không hỗ trợ realtime websocket, tôi sẽ dùng polling tối ưu.
+If Hyperliquid doesn't support realtime websocket, I will use optimized polling.
 
-Thay vì gọi API riêng cho từng user, tôi sẽ gom nhiều user lại và kiểm tra cập nhật mới theo từng khoảng thời gian ngắn. Sau đó chỉ xử lý những giao dịch mới chưa được gửi thông báo.
+Instead of calling API separately for each user, I will group multiple users together and check for new updates at short intervals. Then only process new transactions that haven't been notified.
 
-### Cơ chế chung cho cả hai trường hợp
+### Common Mechanisms for Both Cases
 
-Ở cả hai trường hợp, tôi sẽ thêm cơ chế:
-- Tự kết nối lại nếu mất kết nối
-- Retry khi gửi notification thất bại
-- Bỏ qua dữ liệu trùng lặp
+In both cases, I will add mechanisms for:
+- Auto-reconnect if connection is lost
+- Retry when notification fails
+- Skip duplicate data
 
-Để hệ thống ổn định và có thể mở rộng khi số lượng user tăng lên.
+To keep the system stable and scalable when the number of users increases.
 
 ---
 
@@ -116,9 +116,9 @@ Thay vì gọi API riêng cho từng user, tôi sẽ gom nhiều user lại và 
    - Tránh gửi duplicate notifications
 
 **Scalability:**
-- Thêm workers khi load tăng
-- Shard users thành groups nếu > 10k users
-- Horizontal scaling: chạy nhiều instances
+- Add workers when load increases
+- Shard users into groups if > 10k users
+- Horizontal scaling: run multiple instances
 
 ---
 
@@ -164,24 +164,147 @@ Thay vì gọi API riêng cho từng user, tôi sẽ gom nhiều user lại và 
 **Components:**
 
 1. **Scheduler**
-   - Trigger polling mỗi 10 giây
+   - Trigger polling every 10 seconds
    - Smart interval:
      - Active users: 5-10s
      - Inactive users: 30-60s
 
 2. **Rate Limiter**
    - Token bucket algorithm
-   - Tuân thủ API rate limit (ví dụ: 100 req/s)
-   - Auto-adjust khi gặp 429 error
+   - Comply with API rate limit (e.g., 100 req/s)
+   - Auto-adjust when encountering 429 error
 
 3. **API Client Pool**
    - Batch requests: 50-100 users/request
    - Connection pooling
    - 5-10 concurrent requests
-   - Cursor-based pagination (chỉ fetch orders mới)
+   - Cursor-based pagination (only fetch new orders)
 
 4. **Dedup Cache**
-   - Redis với TTL 1 giờ
+   - Redis with 1 hour TTL
    - Key: `user_address:order_id`
-   - Chỉ xử lý orders chưa thấy
+   - Only process unseen orders
+
+**Scalability:**
+- Increase concurrent requests when load increases
+- Implement smart polling: reduce frequency for inactive users
+- Cache user data to reduce database queries
+
+---
+
+## Database Schema
+
+```sql
+-- Users table
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  address VARCHAR(42) UNIQUE NOT NULL,
+  device_token VARCHAR(255),
+  is_active BOOLEAN DEFAULT true,
+  last_order_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_address ON users(address);
+CREATE INDEX idx_users_active ON users(is_active) WHERE is_active = true;
+
+-- Orders table (for dedup and history)
+CREATE TABLE orders (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id),
+  order_id VARCHAR(100) UNIQUE NOT NULL,
+  filled_at TIMESTAMP NOT NULL,
+  notified_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE INDEX idx_orders_order_id ON orders(order_id);
+```
+
+---
+
+## Monitoring & Metrics
+
+**Key Metrics to Track:**
+
+1. **System Health**
+   - WebSocket connection uptime
+   - API request success rate
+   - Average response time
+
+2. **Business Metrics**
+   - Orders processed per minute
+   - Notification delivery rate
+   - Average notification latency
+
+3. **Error Tracking**
+   - Failed notifications (with retry count)
+   - Rate limit hits
+   - Connection drops
+
+**Alerting:**
+- Alert if notification latency > 5 seconds
+- Alert if error rate > 1%
+- Alert if WebSocket disconnects > 3 times/hour
+
+---
+
+## Cost Estimation (for 2.5k users)
+
+### WebSocket Approach
+
+**Infrastructure:**
+- 1 WebSocket client server: $20/month (small instance)
+- Redis (managed): $30/month
+- Database (PostgreSQL): $25/month
+- Push notification service (FCM/APNS): Free for < 1M/month
+
+**Total: ~$75/month**
+
+### Polling Approach
+
+**Infrastructure:**
+- 2-3 API client servers: $60/month
+- Redis: $30/month
+- Database: $25/month
+- API costs: Depends on Hyperliquid pricing
+
+**Total: ~$115/month + API costs**
+
+---
+
+## Implementation Priority
+
+1. **Phase 1: MVP (Week 1)**
+   - Basic WebSocket client
+   - In-memory user filter
+   - Direct push notification (no queue)
+
+2. **Phase 2: Production Ready (Week 2-3)**
+   - Add message queue (Redis)
+   - Implement dedup cache
+   - Add retry logic
+   - Monitoring & alerting
+
+3. **Phase 3: Scale (Week 4+)**
+   - Horizontal scaling
+   - Smart polling fallback
+   - Advanced monitoring
+   - Performance optimization
+
+---
+
+## Conclusion
+
+**Recommended Approach:** WebSocket-based architecture
+
+**Reasons:**
+- Lower latency (< 1 second vs 5-10 seconds)
+- Lower cost (fewer API calls)
+- Better user experience
+- Easier to scale
+- More reliable (no polling gaps)
+
+**Fallback:** If WebSocket is not available, use optimized polling with batching and smart intervals.
 
